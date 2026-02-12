@@ -194,7 +194,7 @@ with tab2:
 
         elif sample_format == "SQL":
             sql_script = """CREATE TABLE loan_data (
-Current_Loan_Amount INTEGER,
+Current Loan Amount INTEGER,
 Term INTEGER,
 Credit_Score INTEGER,
 Annual_Income INTEGER,
