@@ -132,34 +132,209 @@ with tab1:
 # =====================================================
 with tab2:
 
-    st.subheader("📦 Upload CSV for Bulk Prediction")
+    st.subheader("📦 Bulk Loan Prediction")
 
-    uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+    # ============================================
+    # SAMPLE DATA TEMPLATE
+    # ============================================
+    sample_df = pd.DataFrame({
+        "Current Loan Amount": [25000, 15000],
+        "Term": [0, 1],
+        "Credit Score": [720, 580],
+        "Annual Income": [60000, 35000],
+        "Home Ownership": [3, 1],
+        "Purpose": [4, 2],
+        "Monthly Debt": [1200.5, 800.0],
+        "Years of Credit History": [10, 5],
+        "Months since last delinquent": [0, 12],
+        "Number of Open Accounts": [5, 3],
+        "Number of Credit Problems": [0, 1],
+        "Current Credit Balance": [15000, 8000],
+        "Maximum Open Credit": [30000, 20000]
+    })
 
-    if uploaded_file is not None:
-        try:
-            bulk_df = pd.read_csv(uploaded_file)
-            st.dataframe(bulk_df.head())
+    col1, col2, col3 = st.columns(3)
 
-            if st.button("🚀 Run Bulk Prediction"):
-                bulk_df_model = bulk_df[Model.feature_names_in_]
-                bulk_df["Prediction"] = Model.predict(bulk_df_model)
+    # ============================================
+    # COLUMN 1: DOWNLOAD SAMPLE
+    # ============================================
+    with col1:
+        st.markdown("### ⬇️ Download Sample File")
 
-                st.success("Predictions Completed!")
+        sample_format = st.selectbox(
+            "Select Format",
+            ["CSV", "Excel", "JSON", "SQL"]
+        )
+
+        if sample_format == "CSV":
+            st.download_button(
+                "📥 Download CSV",
+                sample_df.to_csv(index=False),
+                "loan_sample.csv",
+                "text/csv"
+            )
+
+        elif sample_format == "Excel":
+            buffer = io.BytesIO()
+            sample_df.to_excel(buffer, index=False)
+            st.download_button(
+                "📥 Download Excel",
+                buffer.getvalue(),
+                "loan_sample.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+        elif sample_format == "JSON":
+            st.download_button(
+                "📥 Download JSON",
+                sample_df.to_json(orient="records", indent=4),
+                "loan_sample.json",
+                "application/json"
+            )
+
+        elif sample_format == "SQL":
+            sql_script = """CREATE TABLE loan_data (
+Current_Loan_Amount INTEGER,
+Term INTEGER,
+Credit_Score INTEGER,
+Annual_Income INTEGER,
+Home_Ownership INTEGER,
+Purpose INTEGER,
+Monthly_Debt REAL,
+Years_of_Credit_History INTEGER,
+Months_since_last_delinquent INTEGER,
+Number_of_Open_Accounts INTEGER,
+Number_of_Credit_Problems INTEGER,
+Current_Credit_Balance INTEGER,
+Maximum_Open_Credit INTEGER
+);
+
+INSERT INTO loan_data VALUES
+(25000,0,720,60000,3,4,1200.5,10,0,5,0,15000,30000),
+(15000,1,580,35000,1,2,800.0,5,12,3,1,8000,20000);
+"""
+            st.download_button(
+                "📥 Download SQL",
+                sql_script,
+                "loan_sample.sql",
+                "application/sql"
+            )
+
+    # ============================================
+    # COLUMN 2: UPLOAD FILE
+    # ============================================
+    with col2:
+        st.markdown("### 📤 Upload File")
+
+        uploaded_file = st.file_uploader(
+            "Upload CSV, Excel, JSON or SQL",
+            type=["csv", "xlsx", "json", "sql"]
+        )
+
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.endswith(".csv"):
+                    bulk_df = pd.read_csv(uploaded_file)
+
+                elif uploaded_file.name.endswith(".xlsx"):
+                    bulk_df = pd.read_excel(uploaded_file)
+
+                elif uploaded_file.name.endswith(".json"):
+                    bulk_df = pd.read_json(uploaded_file)
+
+                elif uploaded_file.name.endswith(".sql"):
+                    import sqlite3
+                    conn = sqlite3.connect(":memory:")
+                    sql_script = uploaded_file.read().decode("utf-8")
+                    conn.executescript(sql_script)
+                    bulk_df = pd.read_sql("SELECT * FROM loan_data", conn)
+                    conn.close()
+
+                st.success("File Uploaded Successfully!")
                 st.dataframe(bulk_df.head())
 
+                if st.button("🚀 Run Bulk Prediction"):
+                    bulk_df_model = bulk_df[Model.feature_names_in_]
+                    bulk_df["Prediction"] = Model.predict(bulk_df_model)
+
+                    st.session_state["bulk_result"] = bulk_df
+                    st.success("Prediction Completed!")
+
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    # ============================================
+    # COLUMN 3: DOWNLOAD RESULTS
+    # ============================================
+    with col3:
+        st.markdown("### 📊 Download Results")
+
+        if "bulk_result" in st.session_state:
+            result_df = st.session_state["bulk_result"]
+
+            output_format = st.selectbox(
+                "Select Output Format",
+                ["CSV", "Excel", "JSON", "SQL"]
+            )
+
+            if output_format == "CSV":
                 st.download_button(
-                    "📥 Download Results",
-                    bulk_df.to_csv(index=False),
+                    "📥 Download CSV",
+                    result_df.to_csv(index=False),
                     "loan_predictions.csv",
                     "text/csv"
                 )
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+            elif output_format == "Excel":
+                buffer = io.BytesIO()
+                result_df.to_excel(buffer, index=False)
+                st.download_button(
+                    "📥 Download Excel",
+                    buffer.getvalue(),
+                    "loan_predictions.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
-# =====================================================
-# FOOTER
-# =====================================================
-st.markdown("---")
-st.markdown("<center>🏦 LoanSphere | Powered by Machine Learning</center>", unsafe_allow_html=True)
+            elif output_format == "JSON":
+                st.download_button(
+                    "📥 Download JSON",
+                    result_df.to_json(orient="records", indent=4),
+                    "loan_predictions.json",
+                    "application/json"
+                )
+
+            elif output_format == "SQL":
+                table_name = "loan_predictions"
+                sql_script = f"CREATE TABLE {table_name} (\n"
+
+                for col, dtype in result_df.dtypes.items():
+                    if "int" in str(dtype):
+                        sql_type = "INTEGER"
+                    elif "float" in str(dtype):
+                        sql_type = "REAL"
+                    else:
+                        sql_type = "TEXT"
+
+                    sql_script += f"  {col.replace(' ','_')} {sql_type},\n"
+
+                sql_script = sql_script.rstrip(",\n") + "\n);\n\n"
+
+                for _, row in result_df.iterrows():
+                    values = []
+                    for val in row:
+                        if pd.isna(val):
+                            values.append("NULL")
+                        elif isinstance(val, str):
+                            values.append(f"'{val}'")
+                        else:
+                            values.append(str(val))
+                    sql_script += f"INSERT INTO {table_name} VALUES ({', '.join(values)});\n"
+
+                st.download_button(
+                    "📥 Download SQL",
+                    sql_script,
+                    "loan_predictions.sql",
+                    "application/sql"
+                )
+        else:
+            st.info("Run prediction to download results")
